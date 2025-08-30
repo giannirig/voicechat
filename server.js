@@ -1,4 +1,4 @@
-// server.js - Versione ottimizzata per Hostinger
+// server.js - Backend per Railway
 const bcrypt = require('bcrypt');
 const express = require('express');
 const mysql = require('mysql2');
@@ -7,10 +7,11 @@ const path = require('path');
 
 const app = express();
 
-// Configurazione CORS
+// Configurazione CORS completa
 const allowedOrigins = [
   'https://lingotribe.eazycom.it',
   'http://lingotribe.eazycom.it',
+  'https://voicechat-production.up.railway.app',
   'http://localhost:3000',
   'http://localhost:5173'
 ];
@@ -32,9 +33,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
-
-// Servire file statici per il frontend (se necessario)
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Configurazione del database per Hostinger
 const dbConfig = {
@@ -108,8 +106,38 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Altre API (login, availability, ecc.)
-// [Incolla qui le altre API dal tuo file originale]
+app.post('/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username e password sono obbligatori.' });
+    }
+    
+    const sqlQuery = 'SELECT * FROM users WHERE username = ?';
+    const [users] = await dbConnection.execute(sqlQuery, [username]);
+    
+    if (users.length === 0) {
+      return res.status(401).json({ message: 'Credenziali non valide.' });
+    }
+    
+    const user = users[0];
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    
+    if (passwordMatch) {
+      res.status(200).json({ 
+        message: 'Login effettuato con successo!', 
+        user: { id: user.id, name: user.name } 
+      });
+    } else {
+      res.status(401).json({ message: 'Credenziali non valide.' });
+    }
+  } catch (error) {
+    console.error('Errore /login:', error);
+    res.status(500).json({ message: 'Errore interno del server.' });
+  }
+});
+
+// Aggiungi qui le altre API (availability, ecc.)
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
